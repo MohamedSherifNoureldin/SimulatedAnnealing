@@ -6,13 +6,17 @@
 #include <cctype>
 #include <random>
 #include <climits>
+#include <chrono>
+#include <iomanip>
+
 using namespace std;
+using namespace std::chrono;
 
 struct cell{
     int id;
     int x; // column number
     int y; // row number
-    vector<int> nets;
+    vector<int> nets; //list of nets it's conencted to
     cell() {}
     cell(int id) {
         this->id = id;
@@ -22,6 +26,7 @@ struct cell{
 
 vector<cell> cells;
 
+//represents a connection between cells
 struct net{
     int id;
     int minX, minY, maxX, maxY;
@@ -29,7 +34,6 @@ struct net{
     int HPWL;
     vector<int> cells;
     net() {}
-
     net(int id) {
         this->id = id;
         minX = minY = maxX = maxY = HPWL = 0;
@@ -110,7 +114,7 @@ void parseNetListFile(string netListFileName) {
         netListFile.close();
     }
     else 
-    cout << "Unable to open file" << endl;
+        cout << "Unable to open file" << endl;
 }
 
 void placeInitiallyRandom() {
@@ -322,11 +326,13 @@ void simulateAnnealing(int initialCost) {
     uniform_int_distribution<int> intRowsRange(0, numOfRows-1);
     uniform_int_distribution<int> intColumnsRange(0, numOfColumns-1);
     uniform_real_distribution<double> doubleDist(0, 1);
+
     int cell1Row, cell1Column, cell2Row, cell2Column;
     int cell1Index, cell2Index;
     int initialTotalHPWL, newTotalHPWL, deltaHPWL;
     double probability, random_number;
     int count = 0;
+
     while(currentTemperature > finalTemperature) {
         for(int i = 0; i < moves; i++) {
             // randomly select 2 cells
@@ -334,6 +340,7 @@ void simulateAnnealing(int initialCost) {
             cell1Column = intColumnsRange(rng);
             cell2Row = intRowsRange(rng);
             cell2Column = intColumnsRange(rng);
+
             cell1Index = grid[cell1Row][cell1Column];
             cell2Index = grid[cell2Row][cell2Column];
 
@@ -383,17 +390,35 @@ void simulateAnnealing(int initialCost) {
 
 int main() {
     string netListFileName = "test.txt";
-    // cout << "Enter netlist file name: ";
-    // cin >> netListFileName;
+    
+    //start timer
+    auto start = high_resolution_clock::now();
+
+    //existing code
     parseNetListFile(netListFileName);
     placeInitiallyRandom();
     printBinaryGrid();
     computeHPWLofAllNets();
-    // printGrid();
     cout << "Total wire length: " << computeTotalWireLength() << endl;
-    cout<<endl<<endl;
+    cout << endl << endl;
     simulateAnnealing(computeTotalWireLength());
     printGrid();
     cout << "Total wire length: " << computeTotalWireLength() << endl;
+
+    //stop timer
+    auto stop = high_resolution_clock::now();
+
+    //calculate duration in milliseconds
+    auto duration = duration_cast<milliseconds>(stop - start);
+
+    //print time taken
+    if (duration.count() < 1000) {
+        cout << "Time taken by function: "
+             << fixed << setprecision(3) << duration.count() / 1000.0 << " seconds" << endl;
+    } else {
+        cout << "Time taken by function: "
+             << duration.count() / 1000 << " seconds" << endl;
+    }
+
     return 0;
 }
