@@ -316,7 +316,10 @@ void printCell(cell cell1) {
     cout << "Cell id: " << cell1.id << " row: " << cell1.y << " column: " << cell1.x << endl;
 }
 
-void simulateAnnealing(int initialCost) {
+vector <double> temperatures;
+vector <int> wireLengths;
+
+void simulateAnnealing(int initialCost, double coolingRate) {
     double initialTemperature = 500*initialCost;
     double finalTemperature = 0.000005*initialCost/nets.size();
     double currentTemperature = initialTemperature;
@@ -332,6 +335,7 @@ void simulateAnnealing(int initialCost) {
     int initialTotalHPWL, newTotalHPWL, deltaHPWL;
     double probability, random_number;
     int count = 0;
+
 
     while(currentTemperature > finalTemperature) {
         for(int i = 0; i < moves; i++) {
@@ -356,6 +360,7 @@ void simulateAnnealing(int initialCost) {
             //     cout << "helppppppppppp" <<endl;
             // }
             newTotalHPWL = computeTotalWireLength();
+            wireLengths.push_back(newTotalHPWL);
             deltaHPWL = newTotalHPWL - initialTotalHPWL;
             if(deltaHPWL >= 0) {
                 // reject with probability e^(-deltaHPWL/currentTemperature)
@@ -384,8 +389,54 @@ void simulateAnnealing(int initialCost) {
                 }
             }
         }
-        currentTemperature = 0.95 * currentTemperature;
+        currentTemperature = coolingRate * currentTemperature;
+        temperatures.push_back(currentTemperature);
     }
+}
+
+void HPWL_Temperature_Graph(){
+    ofstream myfile;
+    myfile.open ("Temp_TWL.csv");
+    myfile << "Temperature,Wirelength\n";
+    for (int i = 0; i < temperatures.size(); i++) {
+        myfile << temperatures[i] << "," << wireLengths[i] << "\n";
+    }
+    myfile.close();
+
+}
+
+void Final_Wirelength_CoolingRate_Graph(double coolingRates[5]){
+    vector <int> wireLengthsForDifferentCoolingRates;
+    
+    ofstream myfile;
+    for (int i = 0; i < 5; i++) {
+        wireLengths.clear();
+        temperatures.clear();
+        simulateAnnealing(computeTotalWireLength(), coolingRates[i]);
+        wireLengthsForDifferentCoolingRates.push_back(computeTotalWireLength());
+    }
+    myfile.open ("CoolingRate_TWL.csv");
+    myfile << "Cooling Rate,Wirelength\n";
+    for (int i = 0; i < 5; i++) {
+        myfile << coolingRates[i] << "," << wireLengthsForDifferentCoolingRates[i] << "\n";
+    }
+    myfile.close();
+}
+
+void HPWL_Wirelength_CoolingRate_Graph(double coolingRates[5]){
+    
+    ofstream myfile;
+    myfile.open ("CoolingRate_Temp_TWL.csv");
+    myfile << "Cooling Rate,Temperature, Wirelength\n";
+    for (int i = 0; i < 5; i++) {
+        simulateAnnealing(computeTotalWireLength(), coolingRates[i]);
+        for (int j = 0; j < temperatures.size(); j++) {
+            myfile << coolingRates[i] << "," << temperatures[j] << "," << wireLengths[j] << "\n";
+        }
+        wireLengths.clear();
+        temperatures.clear();
+    }
+    myfile.close();
 }
 
 int main() {
@@ -393,7 +444,7 @@ int main() {
     
     //start timer
     auto start = high_resolution_clock::now();
-
+    double coolingRates[] = {0.95, 0.9, 0.85, 0.8, 0.75};
     //existing code
     parseNetListFile(netListFileName);
     placeInitiallyRandom();
@@ -401,7 +452,7 @@ int main() {
     computeHPWLofAllNets();
     cout << "Total wire length: " << computeTotalWireLength() << endl;
     cout << endl << endl;
-    simulateAnnealing(computeTotalWireLength());
+    simulateAnnealing(computeTotalWireLength(), coolingRates[0]);
     printGrid();
     cout << "Total wire length: " << computeTotalWireLength() << endl;
 
@@ -419,6 +470,18 @@ int main() {
         cout << "Time taken by function: "
              << duration.count() / 1000 << " seconds" << endl;
     }
+
+    //Wirelength vs Temperature
+    HPWL_Temperature_Graph();
+
+    //Final Wirelength vs Cooling Rate
+    Final_Wirelength_CoolingRate_Graph(coolingRates);
+
+    //All Wirelength vs Temperature for different cooling rates
+    HPWL_Wirelength_CoolingRate_Graph(coolingRates);
+
+
+
 
     return 0;
 }
