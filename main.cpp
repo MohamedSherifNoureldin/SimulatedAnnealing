@@ -58,16 +58,19 @@ void saveGridImage(const vector<vector<int>>& grid, int iteration, int numOfRows
 
     for (int y = 0; y < numOfRows; ++y) {
         for (int x = 0; x < numOfColumns; ++x) {
-            unsigned char color[3] = {0, 0, 0}; // Default color (black)
+            unsigned char color[3] = {255, 255, 255}; // Default color (white)
+
             if (grid[y][x] != -1) { // If cell is filled, use a different color
-                color[0] = 255; color[1] = 0; color[2] = 0; // Red color
+                // Use a pleasant shade of blue for filled cells
+                color[0] = 135; color[1] = 206; color[2] = 250;
             }
+
             image.draw_rectangle(x * scaleFactor, y * scaleFactor, (x + 1) * scaleFactor - 1, (y + 1) * scaleFactor - 1, color);
         }
     }
 
     // Optionally add grid lines
-    unsigned char gridColor[3] = {200, 200, 200}; // Light gray for grid lines
+    unsigned char gridColor[3] = {169, 169, 169}; // Dark gray for grid lines
     for (int y = 0; y <= numOfRows; ++y) {
         image.draw_line(0, y * scaleFactor, scaledWidth, y * scaleFactor, gridColor);
     }
@@ -75,11 +78,9 @@ void saveGridImage(const vector<vector<int>>& grid, int iteration, int numOfRows
         image.draw_line(x * scaleFactor, 0, x * scaleFactor, scaledHeight, gridColor);
     }
 
-    std::string filename = "images/grid_" + std::to_string(iteration) + ".png";
+    std::string filename = "images2/grid_" + std::to_string(iteration) + ".png";
     image.save(filename.c_str());
 }
-
-
 
 
 vector<net> nets;
@@ -509,4 +510,4 @@ int main() {
 }
 
 //g++ main.cpp -O3 -o main -lX11 -lpthread -std=c++17
-//convert -delay 20 -loop 0 images/grid_*.png annealing_simulation.gif
+//convert -delay 5 -loop 0 images2/grid_*.png t3_annealing_simulation.gif
