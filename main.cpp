@@ -8,9 +8,19 @@
 #include <climits>
 #include <chrono>
 #include <iomanip>
+#include "CImg.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+
+using namespace cimg_library;
 using namespace std;
 using namespace std::chrono;
+
+
+
 
 struct cell{
     int id;
@@ -39,6 +49,38 @@ struct net{
         minX = minY = maxX = maxY = HPWL = 0;
     }
 };
+
+void saveGridImage(const vector<vector<int>>& grid, int iteration, int numOfRows, int numOfColumns, int scaleFactor) {
+    int scaledWidth = numOfColumns * scaleFactor;
+    int scaledHeight = numOfRows * scaleFactor;
+
+    CImg<unsigned char> image(scaledWidth, scaledHeight, 1, 3, 255); // Initialize with white background
+
+    for (int y = 0; y < numOfRows; ++y) {
+        for (int x = 0; x < numOfColumns; ++x) {
+            unsigned char color[3] = {0, 0, 0}; // Default color (black)
+            if (grid[y][x] != -1) { // If cell is filled, use a different color
+                color[0] = 255; color[1] = 0; color[2] = 0; // Red color
+            }
+            image.draw_rectangle(x * scaleFactor, y * scaleFactor, (x + 1) * scaleFactor - 1, (y + 1) * scaleFactor - 1, color);
+        }
+    }
+
+    // Optionally add grid lines
+    unsigned char gridColor[3] = {200, 200, 200}; // Light gray for grid lines
+    for (int y = 0; y <= numOfRows; ++y) {
+        image.draw_line(0, y * scaleFactor, scaledWidth, y * scaleFactor, gridColor);
+    }
+    for (int x = 0; x <= numOfColumns; ++x) {
+        image.draw_line(x * scaleFactor, 0, x * scaleFactor, scaledHeight, gridColor);
+    }
+
+    std::string filename = "images/grid_" + std::to_string(iteration) + ".png";
+    image.save(filename.c_str());
+}
+
+
+
 
 vector<net> nets;
 int numOfRows, numOfColumns;
@@ -349,46 +391,26 @@ void simulateAnnealing(int initialCost, double coolingRate) {
             cell2Index = grid[cell2Row][cell2Column];
 
             initialTotalHPWL = computeTotalWireLength();
-            // swap cells
-            // if(detectTwoEmptyCells()) {
-            //     cout << "Error: Two empty cells detected." << endl;
-            //     cout << "helppppppppppp" <<endl;
-            // }
+          
             swapCells(cell1Index, cell2Index, cell1Row, cell1Column, cell2Row, cell2Column);
-            // if(detectTwoEmptyCells()) {
-            //     cout << "Error: Two empty cells detected." << endl;
-            //     cout << "helppppppppppp" <<endl;
-            // }
+            
             newTotalHPWL = computeTotalWireLength();
             wireLengths.push_back(newTotalHPWL);
             deltaHPWL = newTotalHPWL - initialTotalHPWL;
             if(deltaHPWL >= 0) {
-                // reject with probability e^(-deltaHPWL/currentTemperature)
+                
                 probability = exp(-1*(double)deltaHPWL/currentTemperature); 
                 random_number = doubleDist(rng);
                 if(random_number > probability) {
-                    // cout<<"reject hence swapping: "<<endl;
-                    // cout<<"first cell"<<endl;
-                    // printCell(cells[cell1Index]);
-                    // cout<<"second cell"<<endl;
-                    // printCell(cells[cell2Index]);
-                    // cout<<"grid before swapping: "<<endl;
-                    // printGrid();
+                  
                     swapCells(cell1Index, cell2Index, cell2Row, cell2Column, cell1Row, cell1Column);
-                    // cout<<"after swapping: "<<endl;
-                    // cout<<"first cell"<<endl;
-                    // printCell(cells[cell1Index]);
-                    // cout<<"second cell"<<endl;
-                    // printCell(cells[cell2Index]);
-                    // cout<<"grid after swapping: "<<endl;
-                    // printGrid();
-                    // if(detectTwoEmptyCells()) {
-                    //     cout << "Error: Two empty cells detected." << endl;
-                    //     cout << "helppppppppppp" <<endl;
-                    // }
+                  
                 }
             }
         }
+
+        saveGridImage(grid, count, numOfRows, numOfColumns, 50); // 50x50 pixels per cell
+        count++;
         currentTemperature = coolingRate * currentTemperature;
         temperatures.push_back(currentTemperature);
     }
@@ -485,3 +507,6 @@ int main() {
 
     return 0;
 }
+
+//g++ main.cpp -O3 -o main -lX11 -lpthread -std=c++17
+//convert -delay 20 -loop 0 images/grid_*.png annealing_simulation.gif
