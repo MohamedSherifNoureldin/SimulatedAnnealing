@@ -389,7 +389,10 @@ void simulateAnnealing(int initialCost) {
 }
 
 int main() {
-    string netListFileName = "test.txt";
+    string netListFileName;
+    cout<<"Welecome to Simulated Annealing Project"<<endl;
+    cout<<"Please input netlist file name: ";
+    cin >> netListFileName;
     
     //start timer
     auto start = high_resolution_clock::now();
