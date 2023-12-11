@@ -441,8 +441,9 @@ void simulateAnnealing(int initialCost, double coolingRate) {
                 }
             }
         }
-
-        saveGridImage(grid, count, numOfRows, numOfColumns, 50); // 50x50 pixels per cell
+        
+        // generate images for GIF
+        // saveGridImage(grid, count, numOfRows, numOfColumns, 50); // 50x50 pixels per cell
         count++;
         currentTemperature = coolingRate * currentTemperature;
         temperatures.push_back(currentTemperature);
@@ -497,7 +498,7 @@ void HPWL_Wirelength_CoolingRate_Graph(double coolingRates[5]) {
 int main(int argc, char* argv[]) {
         // Check if the correct number of arguments are provided
     if (argc != 3) {
-        cerr << "Usage: " << argv[0] << " <netlist file name> <y/n for CSV and GIF output>" << endl;
+        cerr << "Usage: " << argv[0] << " <netlist file name> <y/n for CSV output for graphs>" << endl;
         return 1;
     }
 
@@ -539,8 +540,6 @@ int main(int argc, char* argv[]) {
     }
 
     if(choice == 'y' || choice == 'Y') {
-        //create directory for images
-        mkdir("GIF_input_images", 0777);
         //Wirelength vs Temperature
         HPWL_Temperature_Graph();
 
@@ -554,5 +553,5 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-//g++ main.cpp -O3 -o main -lX11 -lpthread -std=c++17
-//convert -delay 5 -loop 0 images2/grid_*.png t3_annealing_simulation.gif
+//g++ main.cpp -O3 -lX11 -lpthread -std=c++17 -march=native -funroll-loops -ffast-math -o main
+//convert -delay 5 -loop 0 GIF_input_images/grid_*.png output.gif
