@@ -54,14 +54,13 @@ void saveGridImage(const vector<vector<int>>& grid, int iteration, int numOfRows
     int scaledWidth = numOfColumns * scaleFactor;
     int scaledHeight = numOfRows * scaleFactor;
 
-    CImg<unsigned char> image(scaledWidth, scaledHeight, 1, 3, 255); // Initialize with white background
+    CImg<unsigned char> image(scaledWidth, scaledHeight, 1, 3, 255);
 
     for (int y = 0; y < numOfRows; ++y) {
         for (int x = 0; x < numOfColumns; ++x) {
             unsigned char color[3] = {255, 255, 255}; // Default color (white)
 
             if (grid[y][x] != -1) { // If cell is filled, use a different color
-                // Use a pleasant shade of blue for filled cells
                 color[0] = 135; color[1] = 206; color[2] = 250;
             }
 
@@ -69,7 +68,6 @@ void saveGridImage(const vector<vector<int>>& grid, int iteration, int numOfRows
         }
     }
 
-    // Optionally add grid lines
     unsigned char gridColor[3] = {169, 169, 169}; // Dark gray for grid lines
     for (int y = 0; y <= numOfRows; ++y) {
         image.draw_line(0, y * scaleFactor, scaledWidth, y * scaleFactor, gridColor);
@@ -78,7 +76,7 @@ void saveGridImage(const vector<vector<int>>& grid, int iteration, int numOfRows
         image.draw_line(x * scaleFactor, 0, x * scaleFactor, scaledHeight, gridColor);
     }
 
-    std::string filename = "images2/grid_" + std::to_string(iteration) + ".png";
+    std::string filename = "GIF_input_images/grid_" + std::to_string(iteration) + ".png";
     image.save(filename.c_str());
 }
 
@@ -310,25 +308,16 @@ void swapCellWithEmpty(cell &cell1, int emptyY, int emptyX) {
 }
 
 void swapCells(int cell1Index, int cell2Index, int cell1Row, int cell1Column, int cell2Row, int cell2Column) {
-    // cout<<"Swap cells called"<<endl;
-    // cout<<"cell1Index: "<<cell1Index<<endl;
-    // cout<<"cell2Index: "<<cell2Index<<endl;
-    // cout<<"cell1Position: row: "<<cell1Row<<" column: "<<cell1Column<<endl;
-    // cout<<"cell2Position: row: "<<cell2Row<<" column: "<<cell2Column<<endl;
     if (cell1Index >=0 && cell1Index < cells.size() && cell2Index >= 0 && cell2Index < cells.size()) {
-        // cout<<"Swap two cells that are filled"<<endl;
         // Swap two cells that are filled
         swapCellwithCell(cells[cell1Index], cells[cell2Index]);
     } else  if (cell1Index >=0 && cell1Index < cells.size() && cell2Index == -1){
-        // cout<<"Swap a filled cell1 with an empty position cell2"<<endl;
         // Swap a filled cell with an empty position
         swapCellWithEmpty(cells[cell1Index], cell2Row, cell2Column);
     } else if (cell2Index >=0 && cell2Index < cells.size() && cell1Index == -1) {
-        // cout<<"Swap a filled cell2 with an empty position cell1"<<endl;
         // Swap an empty position with a filled cell
         swapCellWithEmpty(cells[cell2Index], cell1Row, cell1Column);
     } else if (cell1Index == -1 && cell2Index == -1) {
-        // cout<<"Swap two empty positions"<<endl;
         // Both positions are empty, no swap needed
         return;
     } else {
@@ -357,6 +346,49 @@ bool detectTwoEmptyCells() {
 
 void printCell(cell cell1) {
     cout << "Cell id: " << cell1.id << " row: " << cell1.y << " column: " << cell1.x << endl;
+}
+
+
+void simulateAnnealingFast(int initialCost) {
+    double initialTemperature = 500*initialCost;
+    double finalTemperature = 0.000005*initialCost/nets.size();
+    double currentTemperature = initialTemperature;
+    int moves = 10*cells.size();
+    minstd_rand rng(time(0));
+    uniform_int_distribution<int> intRowsRange(0, numOfRows-1);
+    uniform_int_distribution<int> intColumnsRange(0, numOfColumns-1);
+    uniform_real_distribution<double> doubleDist(0, 1);
+
+    int cell1Row, cell1Column, cell2Row, cell2Column;
+    int cell1Index, cell2Index;
+    int initialTotalHPWL, newTotalHPWL, deltaHPWL;
+    double probability, random_number;
+    int count = 0;
+
+    while(currentTemperature > finalTemperature) {
+        for(int i = 0; i < moves; i++) {
+            cell1Row = intRowsRange(rng);
+            cell1Column = intColumnsRange(rng);
+            cell2Row = intRowsRange(rng);
+            cell2Column = intColumnsRange(rng);
+
+            cell1Index = grid[cell1Row][cell1Column];
+            cell2Index = grid[cell2Row][cell2Column];
+
+            initialTotalHPWL = computeTotalWireLength();
+            swapCells(cell1Index, cell2Index, cell1Row, cell1Column, cell2Row, cell2Column);
+            newTotalHPWL = computeTotalWireLength();
+            deltaHPWL = newTotalHPWL - initialTotalHPWL;
+            if(deltaHPWL >= 0) {
+                probability = exp(-1*(double)deltaHPWL/currentTemperature); 
+                random_number = doubleDist(rng);
+                if(random_number > probability) {
+                    swapCells(cell1Index, cell2Index, cell2Row, cell2Column, cell1Row, cell1Column);
+                }
+            }
+        }
+        currentTemperature = 0.95 * currentTemperature;
+    }
 }
 
 vector <double> temperatures;
@@ -446,7 +478,7 @@ void Final_Wirelength_CoolingRate_Graph(double coolingRates[5]){
     myfile.close();
 }
 
-void HPWL_Wirelength_CoolingRate_Graph(double coolingRates[5]){
+void HPWL_Wirelength_CoolingRate_Graph(double coolingRates[5]) {
     
     ofstream myfile;
     myfile.open ("CoolingRate_Temp_TWL.csv");
@@ -462,30 +494,42 @@ void HPWL_Wirelength_CoolingRate_Graph(double coolingRates[5]){
     myfile.close();
 }
 
-int main() {
-    string netListFileName = "test.txt";
-    
+int main(int argc, char* argv[]) {
+        // Check if the correct number of arguments are provided
+    if (argc != 3) {
+        cerr << "Usage: " << argv[0] << " <netlist file name> <y/n for CSV and GIF output>" << endl;
+        return 1;
+    }
+
+    string netListFileName = argv[1];
+    char choice = argv[2][0]; // Assuming the choice is the first character of the third argument
+
+    // Validate the choice
+    if (choice != 'y' && choice != 'Y' && choice != 'n' && choice != 'N') {
+        cerr << "Invalid choice. Please enter 'y' or 'n'." << endl;
+        return 1;
+    }
+
+    cout << "Welcome to Simulated Annealing Project" << endl;
+
     //start timer
     auto start = high_resolution_clock::now();
     double coolingRates[] = {0.95, 0.9, 0.85, 0.8, 0.75};
-    //existing code
+
     parseNetListFile(netListFileName);
     placeInitiallyRandom();
     printBinaryGrid();
     computeHPWLofAllNets();
-    cout << "Total wire length: " << computeTotalWireLength() << endl;
+    cout << "Initial Total wire length: " << computeTotalWireLength() << endl;
     cout << endl << endl;
-    simulateAnnealing(computeTotalWireLength(), coolingRates[0]);
-    printGrid();
-    cout << "Total wire length: " << computeTotalWireLength() << endl;
-
+    simulateAnnealingFast(computeTotalWireLength());
     //stop timer
     auto stop = high_resolution_clock::now();
+    printGrid();
+    cout << "Final Total wire length: " << computeTotalWireLength() << endl;
 
     //calculate duration in milliseconds
     auto duration = duration_cast<milliseconds>(stop - start);
-
-    //print time taken
     if (duration.count() < 1000) {
         cout << "Time taken by function: "
              << fixed << setprecision(3) << duration.count() / 1000.0 << " seconds" << endl;
@@ -494,17 +538,18 @@ int main() {
              << duration.count() / 1000 << " seconds" << endl;
     }
 
-    //Wirelength vs Temperature
-    HPWL_Temperature_Graph();
+    if(choice == 'y' || choice == 'Y') {
+        //create directory for images
+        mkdir("GIF_input_images", 0777);
+        //Wirelength vs Temperature
+        HPWL_Temperature_Graph();
 
-    //Final Wirelength vs Cooling Rate
-    Final_Wirelength_CoolingRate_Graph(coolingRates);
+        //Final Wirelength vs Cooling Rate
+        Final_Wirelength_CoolingRate_Graph(coolingRates);
 
-    //All Wirelength vs Temperature for different cooling rates
-    HPWL_Wirelength_CoolingRate_Graph(coolingRates);
-
-
-
+        //All Wirelength vs Temperature for different cooling rates
+        HPWL_Wirelength_CoolingRate_Graph(coolingRates);
+    }
 
     return 0;
 }
